@@ -135,7 +135,7 @@ module powerbi.extensibility.visual {
             return data;
         }
 
-        private static transform(dataView: DataView): IItemGroup[] {
+        private static transform(dataView: DataView, categoryData: ICategoryData): IItemGroup[] {
             if (
                 !dataView.categorical &&
                 !dataView.categorical.categories &&
@@ -151,10 +151,22 @@ module powerbi.extensibility.visual {
 
             const categories = dataView.categorical.categories[0].values;
 
-            const items = categories.map<IItemGroup>((category, index) => ({
-                category: category,
-                items: values.map<PrimitiveValue>(valueObject => valueObject.values[index])
-            }));
+            const items = categories.map<IItemGroup>((category, index) => {
+                return {
+                    category: category,
+                    items: values.map(valueObject => {
+                        const value = valueObject.values[index];
+                        const groupName = valueObject.source.groupName as string;
+
+                        return {
+                            value: value,
+                            columnGroup: categoryData.categories[groupName]
+                                ? categoryData.categories[groupName].columnGroup
+                                : null
+                        };
+                    })
+                };
+            });
 
             return items;
         }
@@ -176,7 +188,7 @@ module powerbi.extensibility.visual {
 
             const yAxis: IAxisProperties = createAxis({
                 pixelSpan: visualSize.height,
-                dataDomain: [0, d3.max(items, data => d3.max(data.items, dd => <number>dd))],
+                dataDomain: [0, d3.max(items, data => d3.max(data.items, dd => <number>dd.value))],
                 metaDataColumn: null,
                 formatString: null,
                 outerPadding: 0,
@@ -209,10 +221,12 @@ module powerbi.extensibility.visual {
                     ),
                     icon: legend.LegendIcon.Circle,
                     selected: false,
-                    identity: host
-                        .createSelectionIdBuilder()
-                        .withCategory(category.selectionColumn, 0)
-                        .createSelectionId()
+                    identity: ColorHelper.normalizeSelector(
+                        host
+                            .createSelectionIdBuilder()
+                            .withCategory(category.selectionColumn, 0)
+                            .createSelectionId()
+                    )
                 }))
             };
 
@@ -241,7 +255,7 @@ module powerbi.extensibility.visual {
             legend.positionChartArea(this.mainSvgElement, this.legend);
 
             // Parse data from update options
-            const items = Visual.transform(dataView);
+            const items = Visual.transform(dataView, categoryData);
 
             // margins
             const visualMargin: IMargin = { top: 20, bottom: 20, left: 20, right: 20 };
@@ -309,6 +323,8 @@ module powerbi.extensibility.visual {
             // // Create linear scale for y-axis
             const yScale = data.yAxis.scale;
 
+            const colorHelper = new ColorHelper(this.host.colorPalette);
+
             // Select all bar groups in our chart and bind them to our categories.
             // Each group will contain a set of bars, one for each of the values in category.
             const barGroupSelect = this.visualSvgGroup
@@ -328,7 +344,7 @@ module powerbi.extensibility.visual {
             // that contains both value and total count of all values in this category.
             const barSelect = barGroupSelect
                 .selectAll(Selectors.Bar.selectorName)
-                .data(d => d.items.map(v => ({ count: d.items.length, value: v })));
+                .data(d => d.items.map(v => ({ count: d.items.length, item: v })));
             // For each new value, we create a new rectange.
             barSelect
                 .enter()
@@ -339,10 +355,17 @@ module powerbi.extensibility.visual {
             // Set the size and position of existing rectangles.
             barSelect
                 .attr("x", (d, ix) => (xScale.rangeBand() / d.count) * ix)
-                .attr("y", d => data.size.height - yScale(<number>d.value))
+                .attr("y", d => data.size.height - yScale(<number>d.item.value))
                 .attr("width", d => xScale.rangeBand() / d.count)
-                .attr("height", d => yScale(<number>d.value))
-                .style("fill", data.defaultColor)
+                .attr("height", d => yScale(<number>d.item.value))
+                .style("fill", d =>
+                    d.item.columnGroup
+                        ? colorHelper.getColorForMeasure(
+                              d.item.columnGroup.objects,
+                              d.item.columnGroup.name
+                          )
+                        : data.defaultColor
+                )
                 .on("mouseover", function() {
                     // this is a rect object here
                     d3.select(this).style("fill", data.hoverColor);
