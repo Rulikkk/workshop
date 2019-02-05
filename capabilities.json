@@ -1,14 +1,21 @@
 {
-    "dataRoles": [{
+    "dataRoles": [
+        {
             "displayName": "Categories",
             "name": "category",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Legend",
+            "name": "legend",
             "kind": "Grouping"
         },
         {
             "displayName": "Values",
             "name": "measure",
             "kind": "Measure",
-            "requiredTypes": [{
+            "requiredTypes": [
+                {
                     "integer": true
                 },
                 {
@@ -44,32 +51,42 @@
             }
         }
     },
-    "dataViewMappings": [{
-        "conditions": [{
-            "category": {
-                "max": 1
-            },
-            "measure": {
-                "min": 0
-            }
-        }],
-        "categorical": {
-            "categories": {
-                "for": {
-                    "in": "category"
-                },
-                "dataReductionAlgorithm": {
-                    "top": {}
+    "dataViewMappings": [
+        {
+            "conditions": [
+                {
+                    "category": {
+                        "max": 1
+                    },
+                    "measure": {
+                        "min": 0
+                    },
+                    "legend": { "max": 1 }
                 }
-            },
-            "values": {
-                "select": [{
-                    "bind": {
-                        "to": "measure"
+            ],
+            "categorical": {
+                "categories": {
+                    "for": {
+                        "in": "category"
+                    },
+                    "dataReductionAlgorithm": {
+                        "top": {}
                     }
-                }]
+                },
+                "values": {
+                    "group": {
+                        "by": "legend",
+                        "select": [
+                            {
+                                "bind": {
+                                    "to": "measure"
+                                }
+                            }
+                        ]
+                    }
+                }
             }
         }
-    }],
+    ],
     "supportsLandingPage": true
 }
