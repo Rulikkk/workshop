@@ -362,27 +362,29 @@ module powerbi.extensibility.visual {
                 .classed(Selectors.Bar.className, true);
             // Remove rectangles, that no longer have matching values.
             barSelect.exit().remove();
+
+            let getColor = (d: { item: IItem }): string =>
+                d.item.columnGroup
+                    ? colorHelper.getColorForMeasure(
+                          d.item.columnGroup.objects,
+                          d.item.columnGroup.name
+                      )
+                    : data.defaultColor;
+
             // Set the size and position of existing rectangles.
             barSelect
                 .attr("x", (d, ix) => (xScale.rangeBand() / d.count) * ix)
                 .attr("y", d => data.size.height - yScale(<number>d.item.value))
                 .attr("width", d => xScale.rangeBand() / d.count)
                 .attr("height", d => yScale(<number>d.item.value))
-                .style("fill", d =>
-                    d.item.columnGroup
-                        ? colorHelper.getColorForMeasure(
-                              d.item.columnGroup.objects,
-                              d.item.columnGroup.name
-                          )
-                        : data.defaultColor
-                )
+                .style("fill", getColor)
                 .on("mouseover", function() {
                     // this is a rect object here
                     d3.select(this).style("fill", data.hoverColor);
                 })
                 .on("mouseout", function() {
                     // this is a rect object here
-                    d3.select(this).style("fill", data.defaultColor);
+                    d3.select(this).style("fill", getColor);
                 });
 
             this.xAxisGroup.selectAll("*").remove();
