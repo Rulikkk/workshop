@@ -31,6 +31,7 @@ module powerbi.extensibility.visual {
     import svg = powerbi.extensibility.utils.svg;
     import CssConstants = svg.CssConstants;
     import legend = powerbi.extensibility.utils.chart.legend;
+    import DataRoleHelper = powerbi.extensibility.utils.dataview.DataRoleHelper;
 
     module Selectors {
         export const MainSvg = CssConstants.createClassAndSelector("main-svg");
@@ -75,6 +76,57 @@ module powerbi.extensibility.visual {
                 false,
                 legend.LegendPosition.Top
             );
+        }
+
+        private static findIndex<T>(array: T[], predicate: (value: T) => boolean): number {
+            for (let i = 0; i < array.length; i++) {
+                if (predicate(array[i])) {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private static getCategories(dataView: DataView): ICategoryData {
+            const data: ICategoryData = {
+                title: null,
+                categories: {}
+            };
+
+            // Get legend's metadata column index
+            const legendIndex = Visual.findIndex(dataView.metadata.columns, col =>
+                DataRoleHelper.hasRole(col, "legend")
+            );
+
+            if (legendIndex !== -1) {
+                data.title = dataView.metadata.columns[legendIndex].displayName;
+                console.log(`Legend title = ${data.title}`);
+
+                const groupedValues = dataView.categorical.values.grouped();
+                console.log(groupedValues);
+
+                groupedValues.forEach((group, i) => {
+                    const column: DataViewCategoryColumn = {
+                        identity: [group.identity],
+                        source: {
+                            displayName: null,
+                            queryName: dataView.metadata.columns[legendIndex].queryName
+                        },
+                        values: null
+                    };
+
+                    const category: ICategory = {
+                        name: group.name as string,
+                        selectionColumn: column,
+                        columnGroup: group
+                    };
+
+                    data.categories[category.name] = category;
+                });
+            }
+
+            return data;
         }
 
         private static transform(dataView: DataView): IItemGroup[] {
@@ -142,6 +194,9 @@ module powerbi.extensibility.visual {
             this.settings = Visual.parseSettings(
                 options && options.dataViews && options.dataViews[0]
             );
+
+            // Get categories for legend
+            const categoryData = Visual.getCategories(dataView);
 
             // Parse data from update options
             const items = Visual.transform(dataView);
