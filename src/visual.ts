@@ -41,6 +41,8 @@ module powerbi.extensibility.visual {
     import createTooltipServiceWrapper = powerbi.extensibility.utils.tooltip.createTooltipServiceWrapper;
     import TooltipEventArgs = powerbi.extensibility.utils.tooltip.TooltipEventArgs;
 
+    import valueFormatter = powerbi.extensibility.utils.formatting.valueFormatter;
+
     module Selectors {
         export const MainSvg = CssConstants.createClassAndSelector("main-svg");
         export const BarGroup = CssConstants.createClassAndSelector("bar-group");
@@ -170,14 +172,41 @@ module powerbi.extensibility.visual {
             const valuesObject = dataView.categorical.values.filter(column => DataRoleHelper.hasRoleInValueColumn(column, "measure"));
             const tooltipsObject = dataView.categorical.values.filter(column => DataRoleHelper.hasRoleInValueColumn(column, "tooltips"));
 
+            const tooltipsFormattingOptions =  tooltipsObject.map(object => {
+                return {
+                    object,
+                    formatter: valueFormatter.create({
+                        format: valueFormatter.getFormatStringByColumn(object.source)
+                    })
+                }
+            })
+
             const tooltipsObjectsGroups = d3
-                .nest<DataViewValueColumn>()
-                .key(data => data.source.groupName as string)
-                .map(tooltipsObject, d3.map);
+                .nest<{object: DataViewValueColumn}>()
+                .key(data => data.object.source.groupName as string)
+                .map(tooltipsFormattingOptions, d3.map);
 
             const values = dataView.categorical.values;
 
             const categories = dataView.categorical.categories[0].values;
+
+            const categoryFormatter = valueFormatter.create({
+                format: valueFormatter.getFormatStringByColumn(dataView.categorical.categories[0].source)
+            });
+
+            const measuresFormattersOptions = valuesObject.map(object => {
+                return {
+                    object, 
+                    formatter: valueFormatter.create({
+                        format: valueFormatter.getFormatStringByColumn(object.source)
+                    })
+                }
+            });
+
+            const measuresObjectsGroups = d3
+                .nest<{object: DataViewValueColumn}>()
+                .key(data => data.object.source.groupName as string)
+                .map(measuresFormattersOptions, d3.map);
 
             const items = categories.map<IItemGroup>((category, index) => {
                 return {
@@ -186,13 +215,19 @@ module powerbi.extensibility.visual {
                         const value = valueObject.values[index];
                         const groupName = valueObject.source.groupName as string;
                         const tooltipsColumns = tooltipsObjectsGroups.has(groupName) ? 
-                        tooltipsObjectsGroups.get(groupName).map(data => {
+                        tooltipsObjectsGroups.get(groupName).map((data: {object: DataViewValueColumn, formatter: any}) => {
                             return {
-                                displayName: data.source.displayName,
-                                value: data.values[index]
+                                displayName: data.object.source.displayName,
+                                value: data.formatter.format(data.object.values[index])
                             }
                         }): [];
 
+                        const formattedValue = measuresObjectsGroups.has(groupName) ? 
+                        measuresObjectsGroups.get(groupName).map((data: {object: DataViewValueColumn, formatter: any}) => {
+                            return data.formatter.format(data.object.values[index])
+                        }): [];
+
+                        debugger;
                         return {
                             value: value,
                             columnGroup: categoryData.categories[groupName]
@@ -205,7 +240,7 @@ module powerbi.extensibility.visual {
                                     },
                                     {
                                         displayName: values.source.displayName,
-                                        value: value.toString()
+                                        value: formattedValue[0]
                                     }
                                 ].concat(tooltipsColumns)
                         };
@@ -409,9 +444,9 @@ module powerbi.extensibility.visual {
             // Set the size and position of existing rectangles.
             barSelect
                 .attr("x", (d, ix) => (xScale.rangeBand() / d.count) * ix)
-                .attr("y", d => data.size.height - yScale(<number>d.item.value))
+                .attr("y", d => yScale(<number>d.item.value))
                 .attr("width", d => xScale.rangeBand() / d.count)
-                .attr("height", d => yScale(<number>d.item.value))
+                .attr("height", d =>  data.size.height - yScale(<number>d.item.value))
                 .style("fill", getColor)
                 .on("mouseover", function() {
                     // this is a rect object here
