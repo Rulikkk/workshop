@@ -171,6 +171,13 @@ module powerbi.extensibility.visual {
 
             const valuesObject = dataView.categorical.values.filter(column => DataRoleHelper.hasRoleInValueColumn(column, "measure"));
             const tooltipsObject = dataView.categorical.values.filter(column => DataRoleHelper.hasRoleInValueColumn(column, "tooltips"));
+            const categoryMetadata = dataView.metadata.columns.filter(column => DataRoleHelper.hasRole(column, "category"))[0];
+            const valuesMetadata = dataView.metadata.columns.filter(column => DataRoleHelper.hasRole(column, "measure"))[0];
+            const legendMetadata = dataView.metadata.columns.filter(column => DataRoleHelper.hasRole(column, "legend"))[0];
+
+            const categoryName = categoryMetadata.displayName;
+            const valueName = valuesMetadata.displayName;
+            const legendName = legendMetadata.displayName;
 
             const tooltipsFormattingOptions =  tooltipsObject.map(object => {
                 return {
@@ -227,7 +234,6 @@ module powerbi.extensibility.visual {
                             return data.formatter.format(data.object.values[index])
                         }): [];
 
-                        debugger;
                         return {
                             value: value,
                             columnGroup: categoryData.categories[groupName]
@@ -235,12 +241,15 @@ module powerbi.extensibility.visual {
                                 : null,
                                 tooltipInfo: [
                                     {
-                                        displayName: groupName,
+                                        displayName: categoryName,
                                         value: category.toString()
                                     },
                                     {
-                                        displayName: values.source.displayName,
+                                        displayName: valueName,
                                         value: formattedValue[0]
+                                    },{
+                                        displayName: legendName,
+                                        value: groupName
                                     }
                                 ].concat(tooltipsColumns)
                         };
