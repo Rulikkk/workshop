@@ -32,6 +32,8 @@ module powerbi.extensibility.visual {
     import CssConstants = svg.CssConstants;
     import legend = powerbi.extensibility.utils.chart.legend;
     import DataRoleHelper = powerbi.extensibility.utils.dataview.DataRoleHelper;
+    import IColorPalette = powerbi.extensibility.IColorPalette;
+    import ColorHelper = powerbi.extensibility.utils.color.ColorHelper;
 
     module Selectors {
         export const MainSvg = CssConstants.createClassAndSelector("main-svg");
@@ -50,6 +52,8 @@ module powerbi.extensibility.visual {
         private yAxisGroup: d3.Selection<SVGElement>;
 
         private legend: legend.ILegend;
+
+        private host: IVisualHost;
 
         constructor(options: VisualConstructorOptions) {
             // Create d3 selection from main HTML element
@@ -76,6 +80,8 @@ module powerbi.extensibility.visual {
                 false,
                 legend.LegendPosition.Top
             );
+
+            this.host = options.host;
         }
 
         private static findIndex<T>(array: T[], predicate: (value: T) => boolean): number {
@@ -185,6 +191,37 @@ module powerbi.extensibility.visual {
             };
         }
 
+        private static buildLegendData(
+            categoryData: ICategoryData,
+            host: IVisualHost
+        ): legend.LegendData {
+            if (!categoryData || !categoryData.categories) return null;
+
+            const colorHelper = new ColorHelper(host.colorPalette);
+
+            const legendData: legend.LegendData = {
+                title: categoryData.title,
+                dataPoints: d3.values(categoryData.categories).map(category => ({
+                    label: category.name,
+                    color: colorHelper.getColorForMeasure(
+                        category.columnGroup.objects,
+                        category.columnGroup.name
+                    ),
+                    icon: legend.LegendIcon.Circle,
+                    selected: false,
+                    identity: host
+                        .createSelectionIdBuilder()
+                        .withCategory(category.selectionColumn, 0)
+                        .createSelectionId()
+                }))
+            };
+
+            console.log("Legend data");
+            console.log(legendData);
+
+            return legendData;
+        }
+
         public update(options: VisualUpdateOptions) {
             const dataView = options && options.dataViews && options.dataViews[0];
             if (!dataView) {
@@ -197,6 +234,11 @@ module powerbi.extensibility.visual {
 
             // Get categories for legend
             const categoryData = Visual.getCategories(dataView);
+
+            // Add a legend
+            const legendData = Visual.buildLegendData(categoryData, this.host);
+            this.legend.drawLegend(legendData, options.viewport);
+            legend.positionChartArea(this.mainSvgElement, this.legend);
 
             // Parse data from update options
             const items = Visual.transform(dataView);
@@ -221,14 +263,15 @@ module powerbi.extensibility.visual {
                     options.viewport.height -
                     visualMargin.top -
                     visualMargin.bottom -
-                    axisSize.heightOfX
+                    axisSize.heightOfX -
+                    this.legend.getMargins().height
             };
 
             // Update the size of our SVG element
             if (this.mainSvgElement) {
                 this.mainSvgElement
                     .attr("width", options.viewport.width)
-                    .attr("height", options.viewport.height);
+                    .attr("height", options.viewport.height - this.legend.getMargins().height);
             }
 
             // Translate the SVG group to account for visual's margins
