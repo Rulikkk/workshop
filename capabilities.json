@@ -1,0 +1,75 @@
+{
+    "dataRoles": [{
+            "displayName": "Categories",
+            "name": "category",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Values",
+            "name": "measure",
+            "kind": "Measure",
+            "requiredTypes": [{
+                    "integer": true
+                },
+                {
+                    "numeric": true
+                }
+            ]
+        }
+    ],
+    "objects": {
+        "dataPoint": {
+            "displayName": "Data colors",
+            "properties": {
+                "defaultColor": {
+                    "displayName": "Default color",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "hoverColor": {
+                    "displayName": "Hover color",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "dataViewMappings": [{
+        "conditions": [{
+            "category": {
+                "max": 1
+            },
+            "measure": {
+                "min": 0
+            }
+        }],
+        "categorical": {
+            "categories": {
+                "for": {
+                    "in": "category"
+                },
+                "dataReductionAlgorithm": {
+                    "top": {}
+                }
+            },
+            "values": {
+                "select": [{
+                    "bind": {
+                        "to": "measure"
+                    }
+                }]
+            }
+        }
+    }],
+    "supportsLandingPage": true
+}
