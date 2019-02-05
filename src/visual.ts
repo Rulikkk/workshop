@@ -30,6 +30,7 @@ module powerbi.extensibility.visual {
     import IAxisProperties = powerbi.extensibility.utils.chart.axis.IAxisProperties;
     import svg = powerbi.extensibility.utils.svg;
     import CssConstants = svg.CssConstants;
+    import legend = powerbi.extensibility.utils.chart.legend;
 
     module Selectors {
         export const MainSvg = CssConstants.createClassAndSelector("main-svg");
@@ -46,6 +47,9 @@ module powerbi.extensibility.visual {
 
         private xAxisGroup: d3.Selection<SVGElement>;
         private yAxisGroup: d3.Selection<SVGElement>;
+
+        private legend: legend.ILegend;
+
         constructor(options: VisualConstructorOptions) {
             // Create d3 selection from main HTML element
             const mainElement = d3.select(options.element);
@@ -53,6 +57,7 @@ module powerbi.extensibility.visual {
             this.mainSvgElement = mainElement
                 .append("svg")
                 .classed(Selectors.MainSvg.className, true);
+
             // Append an svg group that will contain our visual
             this.visualSvgGroup = this.mainSvgElement.append("g");
 
@@ -61,6 +66,15 @@ module powerbi.extensibility.visual {
             //axis groups
             this.yAxisGroup = this.mainSvgElement.append("g");
             this.yAxisGroup.classed("yAxis", true);
+
+            // Initialize legend
+            this.legend = legend.createLegend(
+                options.element,
+                false,
+                null,
+                false,
+                legend.LegendPosition.Top
+            );
         }
 
         private static transform(dataView: DataView): IItemGroup[] {
