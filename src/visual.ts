@@ -167,6 +167,14 @@ module powerbi.extensibility.visual {
                 return;
             }
 
+            const valuesObject = dataView.categorical.values.filter(column => DataRoleHelper.hasRoleInValueColumn(column, "measure"));
+            const tooltipsObject = dataView.categorical.values.filter(column => DataRoleHelper.hasRoleInValueColumn(column, "tooltips"));
+
+            const tooltipsObjectsGroups = d3
+                .nest<DataViewValueColumn>()
+                .key(data => data.source.groupName as string)
+                .map(tooltipsObject, d3.map);
+
             const values = dataView.categorical.values;
 
             const categories = dataView.categorical.categories[0].values;
@@ -174,9 +182,16 @@ module powerbi.extensibility.visual {
             const items = categories.map<IItemGroup>((category, index) => {
                 return {
                     category: category,
-                    items: values.map(valueObject => {
+                    items: valuesObject.map(valueObject => {
                         const value = valueObject.values[index];
                         const groupName = valueObject.source.groupName as string;
+                        const tooltipsColumns = tooltipsObjectsGroups.has(groupName) ? 
+                        tooltipsObjectsGroups.get(groupName).map(data => {
+                            return {
+                                displayName: data.source.displayName,
+                                value: data.values[index]
+                            }
+                        }): [];
 
                         return {
                             value: value,
@@ -185,10 +200,14 @@ module powerbi.extensibility.visual {
                                 : null,
                                 tooltipInfo: [
                                     {
+                                        displayName: groupName,
+                                        value: category.toString()
+                                    },
+                                    {
                                         displayName: values.source.displayName,
                                         value: value.toString()
                                     }
-                                ]
+                                ].concat(tooltipsColumns)
                         };
                     })
                 };
