@@ -42,6 +42,7 @@ module powerbi.extensibility.visual {
     import TooltipEventArgs = powerbi.extensibility.utils.tooltip.TooltipEventArgs;
 
     import valueFormatter = powerbi.extensibility.utils.formatting.valueFormatter;
+    import appendClearCatcher = powerbi.extensibility.utils.interactivity.appendClearCatcher;
 
     module Selectors {
         export const MainSvg = CssConstants.createClassAndSelector("main-svg");
@@ -66,6 +67,9 @@ module powerbi.extensibility.visual {
         private tooltipServiceWrapper: ITooltipServiceWrapper;
         private host: IVisualHost;
 
+        private clearCatcher: d3.Selection<SVGElement>;
+        private selectionManager: ISelectionManager;
+
         constructor(options: VisualConstructorOptions) {
             // Create d3 selection from main HTML element
             const mainElement = d3.select(options.element);
@@ -73,6 +77,8 @@ module powerbi.extensibility.visual {
             this.mainSvgElement = mainElement
                 .append("svg")
                 .classed(Selectors.MainSvg.className, true);
+
+            this.clearCatcher = appendClearCatcher(this.mainSvgElement);
 
             // Append an svg group that will contain our visual
             this.visualSvgGroup = this.mainSvgElement.append("g");
@@ -103,7 +109,10 @@ module powerbi.extensibility.visual {
             this.tooltipServiceWrapper = createTooltipServiceWrapper(
                 this.host.tooltipService,
                 options.element
-            )
+            );
+
+            // selection manager
+            this.selectionManager = this.host.createSelectionManager();
         }
 
         private static findIndex<T>(array: T[], predicate: (value: T) => boolean): number {
@@ -157,7 +166,7 @@ module powerbi.extensibility.visual {
             return data;
         }
 
-        private static transform(dataView: DataView, categoryData: ICategoryData): IItemGroup[] {
+        private static transform(dataView: DataView, categoryData: ICategoryData, host: IVisualHost): IItemGroup[] {
             if (
                 !dataView.categorical &&
                 !dataView.categorical.categories &&
@@ -234,7 +243,14 @@ module powerbi.extensibility.visual {
                             return data.formatter.format(data.object.values[index])
                         }): [];
 
+                        const selectionId = host
+                            .createSelectionIdBuilder()
+                            .withCategory(dataView.categorical.categories[0], index)
+                            .withCategory(categoryData.categories[groupName].selectionColumn, 0)
+                            .createSelectionId();
+
                         return {
+                            selectionId: selectionId,
                             value: value,
                             columnGroup: categoryData.categories[groupName]
                                 ? categoryData.categories[groupName].columnGroup
@@ -344,7 +360,7 @@ module powerbi.extensibility.visual {
             legend.positionChartArea(this.mainSvgElement, this.legend);
 
             // Parse data from update options
-            const items = Visual.transform(dataView, categoryData);
+            const items = Visual.transform(dataView, categoryData, this.host);
 
             // margins
             const visualMargin: IMargin = { top: 20, bottom: 20, left: 20, right: 20 };
@@ -419,6 +435,10 @@ module powerbi.extensibility.visual {
             const barGroupSelect = this.visualSvgGroup
                 .selectAll(Selectors.BarGroup.selectorName)
                 .data(data.items);
+
+            this.clearCatcher.on("click", () => {
+                selectionManager.clear().then(() => barSelect.attr("fill-opacity", 1));
+            });
             // When a new category added, create a new SVG group for it.
             barGroupSelect
                 .enter()
@@ -434,6 +454,7 @@ module powerbi.extensibility.visual {
             const barSelect = barGroupSelect
                 .selectAll(Selectors.Bar.selectorName)
                 .data(d => d.items.map(v => ({ count: d.items.length, item: v })));
+
             // For each new value, we create a new rectange.
             barSelect
                 .enter()
@@ -450,6 +471,7 @@ module powerbi.extensibility.visual {
                       )
                     : data.defaultColor;
 
+            const selectionManager = this.selectionManager;
             // Set the size and position of existing rectangles.
             barSelect
                 .attr("x", (d, ix) => (xScale.rangeBand() / d.count) * ix)
@@ -464,6 +486,12 @@ module powerbi.extensibility.visual {
                 .on("mouseout", function() {
                     // this is a rect object here
                     d3.select(this).style("fill", getColor);
+                })
+                .on("click", function (data) {
+                    selectionManager.select(data.item.selectionId).then((ids: ISelectionId[]) => {
+                        barSelect.attr("fill-opacity", ids.length ? 0.5 : 1)
+                    });
+                    d3.select(this).attr("fill-opacity", 1);
                 });
 
             this.xAxisGroup.selectAll("*").remove();
