@@ -34,6 +34,9 @@ module powerbi.extensibility.visual {
     import DataRoleHelper = powerbi.extensibility.utils.dataview.DataRoleHelper;
     import IColorPalette = powerbi.extensibility.IColorPalette;
     import ColorHelper = powerbi.extensibility.utils.color.ColorHelper;
+    import createInteractivityService = powerbi.extensibility.utils.interactivity.createInteractivityService;
+    import IInteractivityService = powerbi.extensibility.utils.interactivity.IInteractivityService;
+    import LegendBehavior = powerbi.extensibility.utils.chart.legend.LegendBehavior;
 
     module Selectors {
         export const MainSvg = CssConstants.createClassAndSelector("main-svg");
@@ -52,6 +55,8 @@ module powerbi.extensibility.visual {
         private yAxisGroup: d3.Selection<SVGElement>;
 
         private legend: legend.ILegend;
+        private interactivityServices: IInteractivityService;
+        private legendBehavior: LegendBehavior;
 
         private host: IVisualHost;
 
@@ -72,13 +77,18 @@ module powerbi.extensibility.visual {
             this.yAxisGroup = this.mainSvgElement.append("g");
             this.yAxisGroup.classed("yAxis", true);
 
+            this.interactivityServices = createInteractivityService(options.host);
+
+            // legend behavior
+            this.legendBehavior = new LegendBehavior();
             // Initialize legend
             this.legend = legend.createLegend(
                 options.element,
                 false,
-                null,
+                this.interactivityServices,
                 false,
-                legend.LegendPosition.Top
+                legend.LegendPosition.Top,
+                this.legendBehavior
             );
 
             this.host = options.host;

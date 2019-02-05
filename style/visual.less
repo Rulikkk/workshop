@@ -1,6 +1,10 @@
 @import "node_modules/powerbi-visuals-utils-chartutils/lib/index.css";
 @import "node_modules/powerbi-visuals-utils-interactivityutils/lib/index.css";
 
+.clearCatcher {
+    opacity: 0;
+}
+
 .legend {
     font-size: 10px;
 }
@@ -13,20 +17,4 @@
 .main-svg {
     position: absolute;
     font-size: 16px;
-}
-
-.bar {
-    fill: steelblue;
-    &:hover {
-        fill: brown;
-    }
-}
-
-p {
-    font-size: 20px;
-    font-weight: bold;
-    em {
-        background: yellow;
-        padding: 5px;
-    }
 }
