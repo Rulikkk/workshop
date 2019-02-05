@@ -12,9 +12,14 @@ module powerbi.extensibility.visual {
         height: number;
     }
 
+    export interface IItem {
+        value: PrimitiveValue;
+        columnGroup: DataViewValueColumnGroup;
+    }
+
     export interface IItemGroup {
         category: PrimitiveValue;
-        items: PrimitiveValue[];
+        items: IItem[];
     }
 
     export interface VisualData {
@@ -31,4 +36,16 @@ module powerbi.extensibility.visual {
         widthOfY: number;
     }
 
+    export interface ICategory {
+        name: string;
+        selectionColumn: DataViewCategoryColumn;
+        columnGroup: DataViewValueColumnGroup;
+    }
+
+    export interface ICategoryData {
+        title: string;
+        categories: {
+            [categoryName: string]: ICategory;
+        };
+    }
 }
