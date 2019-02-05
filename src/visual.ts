@@ -37,6 +37,9 @@ module powerbi.extensibility.visual {
     import createInteractivityService = powerbi.extensibility.utils.interactivity.createInteractivityService;
     import IInteractivityService = powerbi.extensibility.utils.interactivity.IInteractivityService;
     import LegendBehavior = powerbi.extensibility.utils.chart.legend.LegendBehavior;
+    import ITooltipServiceWrapper = powerbi.extensibility.utils.tooltip.ITooltipServiceWrapper;
+    import createTooltipServiceWrapper = powerbi.extensibility.utils.tooltip.createTooltipServiceWrapper;
+    import TooltipEventArgs = powerbi.extensibility.utils.tooltip.TooltipEventArgs;
 
     module Selectors {
         export const MainSvg = CssConstants.createClassAndSelector("main-svg");
@@ -58,6 +61,7 @@ module powerbi.extensibility.visual {
         private interactivityServices: IInteractivityService;
         private legendBehavior: LegendBehavior;
 
+        private tooltipServiceWrapper: ITooltipServiceWrapper;
         private host: IVisualHost;
 
         constructor(options: VisualConstructorOptions) {
@@ -92,6 +96,12 @@ module powerbi.extensibility.visual {
             );
 
             this.host = options.host;
+
+            // tooltips
+            this.tooltipServiceWrapper = createTooltipServiceWrapper(
+                this.host.tooltipService,
+                options.element
+            )
         }
 
         private static findIndex<T>(array: T[], predicate: (value: T) => boolean): number {
@@ -172,7 +182,13 @@ module powerbi.extensibility.visual {
                             value: value,
                             columnGroup: categoryData.categories[groupName]
                                 ? categoryData.categories[groupName].columnGroup
-                                : null
+                                : null,
+                                tooltipInfo: [
+                                    {
+                                        displayName: values.source.displayName,
+                                        value: value.toString()
+                                    }
+                                ]
                         };
                     })
                 };
@@ -392,6 +408,11 @@ module powerbi.extensibility.visual {
             this.xAxisGroup.call(data.xAxis.axis);
             // data.yAxis.axis(this.yAxisGroup);
             this.yAxisGroup.call(data.yAxis.axis);
+
+            // add tooltips into the visual
+            this.tooltipServiceWrapper.addTooltip(barSelect, (args: TooltipEventArgs<{item: IItem}>): VisualTooltipDataItem[] =>
+                args.data.item.tooltipInfo.length ? args.data.item.tooltipInfo : null
+            );
         }
 
         private static parseSettings(dataView: DataView): VisualSettings {

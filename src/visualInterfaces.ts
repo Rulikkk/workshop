@@ -15,6 +15,7 @@ module powerbi.extensibility.visual {
     export interface IItem {
         value: PrimitiveValue;
         columnGroup: DataViewValueColumnGroup;
+        tooltipInfo: VisualTooltipDataItem[];
     }
 
     export interface IItemGroup {
