@@ -2,7 +2,7 @@
 
 1. Install npm and everything for it to work.
 
-2. Install PowerBI Visuals Tools: `npm i powerbi-visuals-tools`.
+2. Install PowerBI Visuals Tools globally: `npm i -g powerbi-visuals-tools`.
 
 3. Clone this repo or download as zip.
 
