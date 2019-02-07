@@ -186,7 +186,7 @@ module powerbi.extensibility.visual {
 
             const categoryName = categoryMetadata.displayName;
             const valueName = valuesMetadata.displayName;
-            const legendName = legendMetadata.displayName;
+            const legendName = legendMetadata && legendMetadata.displayName;
 
             const tooltipsFormattingOptions =  tooltipsObject.map(object => {
                 return {
@@ -243,11 +243,33 @@ module powerbi.extensibility.visual {
                             return data.formatter.format(data.object.values[index])
                         }): [];
 
-                        const selectionId = host
+                        const builder = host
                             .createSelectionIdBuilder()
                             .withCategory(dataView.categorical.categories[0], index)
-                            .withCategory(categoryData.categories[groupName].selectionColumn, 0)
-                            .createSelectionId();
+                        if (legendMetadata) {
+                            builder.withCategory(categoryData.categories[groupName].selectionColumn, 0)
+                        }
+                        const selectionId = builder.createSelectionId();
+
+                        let tooltipInfo = [
+                                {
+                                    displayName: categoryName,
+                                    value: category.toString()
+                                },
+                                {
+                                    displayName: valueName,
+                                    value: formattedValue[0]
+                                }
+                            ];
+
+                        if (legendMetadata) {
+                            tooltipInfo.push({
+                                displayName: legendName,
+                                value: groupName
+                            });
+                        }
+
+                        tooltipInfo = tooltipInfo.concat(tooltipsColumns);
 
                         return {
                             selectionId: selectionId,
@@ -255,19 +277,7 @@ module powerbi.extensibility.visual {
                             columnGroup: categoryData.categories[groupName]
                                 ? categoryData.categories[groupName].columnGroup
                                 : null,
-                                tooltipInfo: [
-                                    {
-                                        displayName: categoryName,
-                                        value: category.toString()
-                                    },
-                                    {
-                                        displayName: valueName,
-                                        value: formattedValue[0]
-                                    },{
-                                        displayName: legendName,
-                                        value: groupName
-                                    }
-                                ].concat(tooltipsColumns)
+                                tooltipInfo: tooltipInfo
                         };
                     })
                 };
@@ -342,6 +352,7 @@ module powerbi.extensibility.visual {
         }
 
         public update(options: VisualUpdateOptions) {
+            debugger;
             const dataView = options && options.dataViews && options.dataViews[0];
             if (!dataView) {
                 return;
@@ -356,6 +367,8 @@ module powerbi.extensibility.visual {
 
             // Add a legend
             const legendData = Visual.buildLegendData(categoryData, this.host);
+            this.legend.reset();
+            this.legend.changeOrientation(legend.LegendPosition.Top);
             this.legend.drawLegend(legendData, options.viewport);
             legend.positionChartArea(this.mainSvgElement, this.legend);
 
