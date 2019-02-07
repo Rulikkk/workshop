@@ -17,6 +17,7 @@ module powerbi.extensibility.visual {
         columnGroup: DataViewValueColumnGroup;
         tooltipInfo: VisualTooltipDataItem[];
         selectionId: ISelectionId;
+        highlighted: boolean;
     }
 
     export interface IItemGroup {
@@ -31,6 +32,7 @@ module powerbi.extensibility.visual {
         hoverColor: string;
         xAxis: IAxisProperties;
         yAxis: IAxisProperties;
+        highlights: boolean;
     }
 
     export interface IAxisSpace {
