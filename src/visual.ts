@@ -125,6 +125,11 @@ module powerbi.extensibility.visual {
             return -1;
         }
 
+        // return true if any item in array matches predicate
+        private static any<T>(array: T[], predicate: (value: T) => boolean): boolean {
+            return Visual.findIndex(array, predicate) >= 0;
+        }
+
         private static getCategories(dataView: DataView): ICategoryData {
             const data: ICategoryData = {
                 title: null,
@@ -202,6 +207,9 @@ module powerbi.extensibility.visual {
             const valueName = valuesMetadata.displayName;
             const legendName = legendMetadata.displayName;
 
+            // has non-nulls for items that are highlihgted
+            const highlights = dataView.categorical.values[0].highlights;
+
             const tooltipsFormattingOptions = tooltipsObject.map(object => {
                 return {
                     object,
@@ -277,6 +285,8 @@ module powerbi.extensibility.visual {
                             columnGroup: categoryData.categories[groupName]
                                 ? categoryData.categories[groupName].columnGroup
                                 : null,
+                            // true if category is highlighted
+                            highlighted: highlights && highlights[index] !== null,
                             tooltipInfo: [
                                 {
                                     displayName: categoryName,
@@ -441,7 +451,8 @@ module powerbi.extensibility.visual {
                 defaultColor: this.settings.dataPoint.defaultColor,
                 hoverColor: this.settings.dataPoint.hoverColor,
                 xAxis: xAxis,
-                yAxis: yAxis
+                yAxis: yAxis,
+                highlights: Visual.any(items, item => Visual.any(item.items, x => x.highlighted))
             });
         }
 
@@ -494,6 +505,9 @@ module powerbi.extensibility.visual {
                       )
                     : data.defaultColor;
 
+            const getOpacity = ({ item }: { item: IItem }): number =>
+                data.highlights ? (item.highlighted ? 1 : 0.3) : null;
+
             const selectionManager = this.selectionManager;
             // Set the size and position of existing rectangles.
             barSelect
@@ -502,6 +516,7 @@ module powerbi.extensibility.visual {
                 .attr("width", d => xScale.rangeBand() / d.count)
                 .attr("height", d => data.size.height - yScale(<number>d.item.value))
                 .style("fill", getColor)
+                .style("fill-opacity", getOpacity)
                 .on("mouseover", function() {
                     // this is a rect object here
                     d3.select(this).style("fill", data.hoverColor);
