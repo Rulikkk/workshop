@@ -166,7 +166,11 @@ module powerbi.extensibility.visual {
             return data;
         }
 
-        private static transform(dataView: DataView, categoryData: ICategoryData, host: IVisualHost): IItemGroup[] {
+        private static transform(
+            dataView: DataView,
+            categoryData: ICategoryData,
+            host: IVisualHost
+        ): IItemGroup[] {
             if (
                 !dataView.categorical &&
                 !dataView.categorical.categories &&
@@ -178,27 +182,37 @@ module powerbi.extensibility.visual {
                 return;
             }
 
-            const valuesObject = dataView.categorical.values.filter(column => DataRoleHelper.hasRoleInValueColumn(column, "measure"));
-            const tooltipsObject = dataView.categorical.values.filter(column => DataRoleHelper.hasRoleInValueColumn(column, "tooltips"));
-            const categoryMetadata = dataView.metadata.columns.filter(column => DataRoleHelper.hasRole(column, "category"))[0];
-            const valuesMetadata = dataView.metadata.columns.filter(column => DataRoleHelper.hasRole(column, "measure"))[0];
-            const legendMetadata = dataView.metadata.columns.filter(column => DataRoleHelper.hasRole(column, "legend"))[0];
+            const valuesObject = dataView.categorical.values.filter(column =>
+                DataRoleHelper.hasRoleInValueColumn(column, "measure")
+            );
+            const tooltipsObject = dataView.categorical.values.filter(column =>
+                DataRoleHelper.hasRoleInValueColumn(column, "tooltips")
+            );
+            const categoryMetadata = dataView.metadata.columns.filter(column =>
+                DataRoleHelper.hasRole(column, "category")
+            )[0];
+            const valuesMetadata = dataView.metadata.columns.filter(column =>
+                DataRoleHelper.hasRole(column, "measure")
+            )[0];
+            const legendMetadata = dataView.metadata.columns.filter(column =>
+                DataRoleHelper.hasRole(column, "legend")
+            )[0];
 
             const categoryName = categoryMetadata.displayName;
             const valueName = valuesMetadata.displayName;
             const legendName = legendMetadata.displayName;
 
-            const tooltipsFormattingOptions =  tooltipsObject.map(object => {
+            const tooltipsFormattingOptions = tooltipsObject.map(object => {
                 return {
                     object,
                     formatter: valueFormatter.create({
                         format: valueFormatter.getFormatStringByColumn(object.source)
                     })
-                }
-            })
+                };
+            });
 
             const tooltipsObjectsGroups = d3
-                .nest<{object: DataViewValueColumn}>()
+                .nest<{ object: DataViewValueColumn }>()
                 .key(data => data.object.source.groupName as string)
                 .map(tooltipsFormattingOptions, d3.map);
 
@@ -207,20 +221,22 @@ module powerbi.extensibility.visual {
             const categories = dataView.categorical.categories[0].values;
 
             const categoryFormatter = valueFormatter.create({
-                format: valueFormatter.getFormatStringByColumn(dataView.categorical.categories[0].source)
+                format: valueFormatter.getFormatStringByColumn(
+                    dataView.categorical.categories[0].source
+                )
             });
 
             const measuresFormattersOptions = valuesObject.map(object => {
                 return {
-                    object, 
+                    object,
                     formatter: valueFormatter.create({
                         format: valueFormatter.getFormatStringByColumn(object.source)
                     })
-                }
+                };
             });
 
             const measuresObjectsGroups = d3
-                .nest<{object: DataViewValueColumn}>()
+                .nest<{ object: DataViewValueColumn }>()
                 .key(data => data.object.source.groupName as string)
                 .map(measuresFormattersOptions, d3.map);
 
@@ -230,18 +246,24 @@ module powerbi.extensibility.visual {
                     items: valuesObject.map(valueObject => {
                         const value = valueObject.values[index];
                         const groupName = valueObject.source.groupName as string;
-                        const tooltipsColumns = tooltipsObjectsGroups.has(groupName) ? 
-                        tooltipsObjectsGroups.get(groupName).map((data: {object: DataViewValueColumn, formatter: any}) => {
-                            return {
-                                displayName: data.object.source.displayName,
-                                value: data.formatter.format(data.object.values[index])
-                            }
-                        }): [];
+                        const tooltipsColumns = tooltipsObjectsGroups.has(groupName)
+                            ? tooltipsObjectsGroups
+                                  .get(groupName)
+                                  .map((data: { object: DataViewValueColumn; formatter: any }) => {
+                                      return {
+                                          displayName: data.object.source.displayName,
+                                          value: data.formatter.format(data.object.values[index])
+                                      };
+                                  })
+                            : [];
 
-                        const formattedValue = measuresObjectsGroups.has(groupName) ? 
-                        measuresObjectsGroups.get(groupName).map((data: {object: DataViewValueColumn, formatter: any}) => {
-                            return data.formatter.format(data.object.values[index])
-                        }): [];
+                        const formattedValue = measuresObjectsGroups.has(groupName)
+                            ? measuresObjectsGroups
+                                  .get(groupName)
+                                  .map((data: { object: DataViewValueColumn; formatter: any }) => {
+                                      return data.formatter.format(data.object.values[index]);
+                                  })
+                            : [];
 
                         const selectionId = host
                             .createSelectionIdBuilder()
@@ -255,19 +277,20 @@ module powerbi.extensibility.visual {
                             columnGroup: categoryData.categories[groupName]
                                 ? categoryData.categories[groupName].columnGroup
                                 : null,
-                                tooltipInfo: [
-                                    {
-                                        displayName: categoryName,
-                                        value: category.toString()
-                                    },
-                                    {
-                                        displayName: valueName,
-                                        value: formattedValue[0]
-                                    },{
-                                        displayName: legendName,
-                                        value: groupName
-                                    }
-                                ].concat(tooltipsColumns)
+                            tooltipInfo: [
+                                {
+                                    displayName: categoryName,
+                                    value: category.toString()
+                                },
+                                {
+                                    displayName: valueName,
+                                    value: formattedValue[0]
+                                },
+                                {
+                                    displayName: legendName,
+                                    value: groupName
+                                }
+                            ].concat(tooltipsColumns)
                         };
                     })
                 };
@@ -477,7 +500,7 @@ module powerbi.extensibility.visual {
                 .attr("x", (d, ix) => (xScale.rangeBand() / d.count) * ix)
                 .attr("y", d => yScale(<number>d.item.value))
                 .attr("width", d => xScale.rangeBand() / d.count)
-                .attr("height", d =>  data.size.height - yScale(<number>d.item.value))
+                .attr("height", d => data.size.height - yScale(<number>d.item.value))
                 .style("fill", getColor)
                 .on("mouseover", function() {
                     // this is a rect object here
@@ -487,9 +510,9 @@ module powerbi.extensibility.visual {
                     // this is a rect object here
                     d3.select(this).style("fill", getColor);
                 })
-                .on("click", function (data) {
+                .on("click", function(data) {
                     selectionManager.select(data.item.selectionId).then((ids: ISelectionId[]) => {
-                        barSelect.attr("fill-opacity", ids.length ? 0.5 : 1)
+                        barSelect.attr("fill-opacity", ids.length ? 0.5 : 1);
                     });
                     d3.select(this).attr("fill-opacity", 1);
                 });
@@ -503,8 +526,10 @@ module powerbi.extensibility.visual {
             this.yAxisGroup.call(data.yAxis.axis);
 
             // add tooltips into the visual
-            this.tooltipServiceWrapper.addTooltip(barSelect, (args: TooltipEventArgs<{item: IItem}>): VisualTooltipDataItem[] =>
-                args.data.item.tooltipInfo.length ? args.data.item.tooltipInfo : null
+            this.tooltipServiceWrapper.addTooltip(
+                barSelect,
+                (args: TooltipEventArgs<{ item: IItem }>): VisualTooltipDataItem[] =>
+                    args.data.item.tooltipInfo.length ? args.data.item.tooltipInfo : null
             );
         }
 
