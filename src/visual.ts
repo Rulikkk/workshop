@@ -384,7 +384,6 @@ module powerbi.extensibility.visual {
         }
 
         public update(options: VisualUpdateOptions) {
-            debugger;
             const dataView = options && options.dataViews && options.dataViews[0];
             if (!dataView) {
                 return;
