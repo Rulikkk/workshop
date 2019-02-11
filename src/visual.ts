@@ -43,6 +43,7 @@ module powerbi.extensibility.visual {
 
     import valueFormatter = powerbi.extensibility.utils.formatting.valueFormatter;
     import appendClearCatcher = powerbi.extensibility.utils.interactivity.appendClearCatcher;
+    import getValue = powerbi.extensibility.utils.dataview.DataViewObjects.getValue;
 
     module Selectors {
         export const MainSvg = CssConstants.createClassAndSelector("main-svg");
@@ -51,8 +52,13 @@ module powerbi.extensibility.visual {
         export const LegendItem = CssConstants.createClassAndSelector("legendItem");
         export const LegndTitle = CssConstants.createClassAndSelector("legendTitle");
     }
+    
 
     export class Visual implements IVisual {
+        private static CategoryColors: DataViewObjectPropertyIdentifier = {
+            objectName: "categoryColors",
+            propertyName: "fill"
+        };
         private settings: VisualSettings; // settings field might already be there, so don't declare it twice
         private mainSvgElement: d3.Selection<SVGElement>;
         private visualSvgGroup: d3.Selection<SVGElement>;
@@ -69,6 +75,10 @@ module powerbi.extensibility.visual {
 
         private clearCatcher: d3.Selection<SVGElement>;
         private selectionManager: ISelectionManager;
+
+        private legendCategoryData: legend.LegendData;
+
+        private visualDataItems: IItemGroup[];
 
         constructor(options: VisualConstructorOptions) {
             // Create d3 selection from main HTML element
@@ -227,6 +237,7 @@ module powerbi.extensibility.visual {
             const values = dataView.categorical.values;
 
             const categories = dataView.categorical.categories[0].values;
+            const categoriesObjects = dataView.categorical.categories[0].objects;
 
             const categoryFormatter = valueFormatter.create({
                 format: valueFormatter.getFormatStringByColumn(
@@ -251,6 +262,10 @@ module powerbi.extensibility.visual {
             const items = categories.map<IItemGroup>((category, index) => {
                 return {
                     category: category,
+                    categoryColor: categoriesObjects && categoriesObjects[index] !== null ? getValue<Fill>(categoriesObjects[index], {
+                        objectName: Visual.CategoryColors.objectName,
+                        propertyName: Visual.CategoryColors.propertyName
+                    }).solid.color : "black",
                     items: valuesObject.map(valueObject => {
                         const value = valueObject.values[index];
                         const groupName = valueObject.source.groupName as string;
@@ -309,7 +324,7 @@ module powerbi.extensibility.visual {
                                 : null,
                                 tooltipInfo: tooltipInfo,
                             // true if category is highlighted
-                            highlighted: highlights && highlights[index] !== null,
+                            highlighted: highlights && highlights[index] !== null
                         };
                     })
                 };
@@ -356,7 +371,7 @@ module powerbi.extensibility.visual {
         ): legend.LegendData {
             if (!categoryData || !categoryData.categories) return null;
 
-            const colorHelper = new ColorHelper(host.colorPalette);
+            const colorHelper = new ColorHelper(host.colorPalette, Visual.CategoryColors);
 
             const legendData: legend.LegendData = {
                 title: categoryData.title,
@@ -384,6 +399,7 @@ module powerbi.extensibility.visual {
         }
 
         public update(options: VisualUpdateOptions) {
+            debugger;
             const dataView = options && options.dataViews && options.dataViews[0];
             if (!dataView) {
                 return;
@@ -397,15 +413,14 @@ module powerbi.extensibility.visual {
             const categoryData = Visual.getCategories(dataView);
 
             // Add a legend
-            const legendData = Visual.buildLegendData(categoryData, this.host);
+            const legendData = this.legendCategoryData = Visual.buildLegendData(categoryData, this.host);
             this.legend.reset();
             this.legend.changeOrientation(legend.LegendPosition.Top);
             this.legend.drawLegend(legendData, options.viewport);
             legend.positionChartArea(this.mainSvgElement, this.legend);
 
             // Parse data from update options
-            const items = Visual.transform(dataView, categoryData, this.host);
-
+            const items = this.visualDataItems = Visual.transform(dataView, categoryData, this.host);
             // margins
             const visualMargin: IMargin = { top: 20, bottom: 20, left: 20, right: 20 };
 
@@ -473,8 +488,6 @@ module powerbi.extensibility.visual {
             // // Create linear scale for y-axis
             const yScale = data.yAxis.scale;
 
-            const colorHelper = new ColorHelper(this.host.colorPalette);
-
             // Select all bar groups in our chart and bind them to our categories.
             // Each group will contain a set of bars, one for each of the values in category.
             const barGroupSelect = this.visualSvgGroup
@@ -498,7 +511,7 @@ module powerbi.extensibility.visual {
             // that contains both value and total count of all values in this category.
             const barSelect = barGroupSelect
                 .selectAll(Selectors.Bar.selectorName)
-                .data(d => d.items.map(v => ({ count: d.items.length, item: v })));
+                .data(d => d.items.map(v => ({ count: d.items.length, item: v, color: d.categoryColor })));
 
             // For each new value, we create a new rectange.
             barSelect
@@ -508,13 +521,23 @@ module powerbi.extensibility.visual {
             // Remove rectangles, that no longer have matching values.
             barSelect.exit().remove();
 
-            let getColor = (d: { item: IItem }): string =>
-                d.item.columnGroup
-                    ? colorHelper.getColorForMeasure(
-                          d.item.columnGroup.objects,
-                          d.item.columnGroup.name
-                      )
-                    : data.defaultColor;
+            let getColor = (d: { color: string, item: IItem }): string => {
+                const colorHelper = new ColorHelper(this.host.colorPalette, Visual.CategoryColors);
+                if (d.item.columnGroup) {
+                    return (getValue<Fill>(d.item.columnGroup.objects, {
+                        objectName: Visual.CategoryColors.objectName,
+                        propertyName: Visual.CategoryColors.propertyName
+                    }) || 
+                    colorHelper.getColorForMeasure(
+                        d.item.columnGroup.objects,
+                        d.item.columnGroup.name
+                    )) as string;
+                }
+                if (d.color) {
+                    return d.color
+                }
+                return data.defaultColor;
+            };
 
             const getOpacity = ({ item }: { item: IItem }): number =>
                 data.highlights ? (item.highlighted ? 1 : 0.3) : null;
@@ -563,6 +586,53 @@ module powerbi.extensibility.visual {
             return VisualSettings.parse(dataView) as VisualSettings;
         }
 
+        private addAnInstanceToEnumeration(
+            instanceEnumeration: VisualObjectInstanceEnumeration,
+            instance: VisualObjectInstance): void {
+    
+            if ((instanceEnumeration as VisualObjectInstanceEnumerationObject).instances) {
+                (instanceEnumeration as VisualObjectInstanceEnumerationObject)
+                    .instances
+                    .push(instance);
+            } else {
+                (instanceEnumeration as VisualObjectInstance[]).push(instance);
+            }
+        }
+
+        private enumerateLegends(instanceEnumeration: VisualObjectInstanceEnumeration) {
+            this.legendCategoryData.dataPoints.forEach(legend => {
+                this.addAnInstanceToEnumeration(instanceEnumeration, {
+                    objectName: Visual.CategoryColors.objectName,
+                    displayName: legend.label,
+                    selector: (legend.identity as powerbi.visuals.ISelectionId).getSelector(),
+                    properties: {
+                        fill: {
+                            solid: {
+                                color: legend.color || "black"
+                            }
+                        }
+                    }
+                });
+            })
+        }
+
+        private enumerateCategories(instanceEnumeration: VisualObjectInstanceEnumeration) {
+            this.visualDataItems.forEach(category => {
+                this.addAnInstanceToEnumeration(instanceEnumeration, {
+                    objectName: Visual.CategoryColors.objectName,
+                    displayName: category.category.toString(),
+                    selector: (category.items[0].selectionId as powerbi.visuals.ISelectionId).getSelector(),
+                    properties: {
+                        fill: {
+                            solid: {
+                                color: category.categoryColor || this.settings.dataPoint.defaultColor || "black"
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
         /**
          * This function gets called for each of the objects defined in the capabilities files and allows you to select which of the
          * objects and properties you want to expose to the users in the property pane.
@@ -571,17 +641,25 @@ module powerbi.extensibility.visual {
         public enumerateObjectInstances(
             options: EnumerateVisualObjectInstancesOptions
         ): VisualObjectInstance[] | VisualObjectInstanceEnumerationObject {
-            let result: VisualObjectInstanceEnumerationObject = VisualSettings.enumerateObjectInstances(
-                this.settings || VisualSettings.getDefault(),
-                options
-            ) as VisualObjectInstanceEnumerationObject;
-            if (
-                result.instances[0].properties["text"] &&
-                result.instances[0].properties["text"].toString().length > 30
-            ) {
-                result.instances[0].properties["text"] = null;
+            let result = [];
+            // if user defined data fror legend the visual displays objects for legends
+            // else the visual displays objects for categories
+            if (options.objectName === Visual.CategoryColors.objectName) {
+                if (this.legendCategoryData.dataPoints.length) {
+                    this.enumerateLegends(result);
+                }
+                else {
+                    this.enumerateCategories(result);
+                }
+                return result;
+            } else {
+                let result: VisualObjectInstanceEnumeration = VisualSettings.enumerateObjectInstances(
+                    this.settings || VisualSettings.getDefault(),
+                    options
+                ) as VisualObjectInstanceEnumeration;
+    
+                return result;
             }
-            return result;
         }
     }
 }

@@ -31,7 +31,7 @@
     ],
     "objects": {
         "dataPoint": {
-            "displayName": "Data colors",
+            "displayName": "Default colors",
             "properties": {
                 "defaultColor": {
                     "displayName": "Default color",
@@ -45,6 +45,21 @@
                 },
                 "hoverColor": {
                     "displayName": "Hover color",
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "categoryColors": {
+            "displayName": "Category colors",
+            "properties": {
+                "fill": {
+                    "displayName": "Category colors",
                     "type": {
                         "fill": {
                             "solid": {

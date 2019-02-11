@@ -21,6 +21,7 @@ module powerbi.extensibility.visual {
     }
 
     export interface IItemGroup {
+        categoryColor?: string;
         category: PrimitiveValue;
         items: IItem[];
     }
@@ -44,6 +45,7 @@ module powerbi.extensibility.visual {
         name: string;
         selectionColumn: DataViewCategoryColumn;
         columnGroup: DataViewValueColumnGroup;
+        legendColor?: string;
     }
 
     export interface ICategoryData {
